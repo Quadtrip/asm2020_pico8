@@ -118,6 +118,12 @@ function _init()
 		end
 	end
 
+	-- music init
+
+	poke(0x5f40,0b0111)
+	poke(0x5f41,0b0000)
+	poke(0x5f42,0b0011)
+	poke(0x5f43,0b0001)
 
 	music(0)
 
