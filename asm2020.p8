@@ -896,9 +896,37 @@ end
  end
 -->8
 -- music functions
-
-
-
+--
+-- stat(16..19) and (20..24)
+-- are used for finding out
+-- what's happening in the 
+-- channels. get_note wraps
+-- these into a simpler way
+-- where you need to only
+-- provide the channel you
+-- are interested in
+--
+-- get_note(0) returns a table
+-- for the first channel 
+-- in the following order
+-- { pitch, instrument, vol, fx }
+--
+-- syncing things to certain
+-- notes is probably best
+-- done by looking at the fx
+-- value of a note
+--
+-- for example, for bass drum
+-- i tend to use the fx 3(drop)
+-- so it's relatively easy to 
+-- extract
+--
+-- something like
+--
+-- note=get_note(0)
+-- bd_hit=(note[4]==3)
+-- 1 when hit, 0 otherwise
+--
 
 function stats(i,k,x,y,text)
 	print("",x,y,7)
@@ -941,21 +969,27 @@ function music_stats()
 	color(8)
 	foreach(filter,print)
 	
-	print("",0,6*9,9)
-	foreach(get_note(stat(16),stat(20)),print)
-	print("",4*3,6*9,9)
-	foreach(get_note(stat(17),stat(21)),print)
-	print("",4*6,6*9,9)
-	foreach(get_note(stat(18),stat(22)),print)
- print("",4*9,6*9,9)
-	foreach(get_note(stat(19),stat(23)),print)
+	local ch1=get_note(0)
+	local ch2=get_note(1)
+	local ch3=get_note(2)
+	local ch4=get_note(3)
+	print("█",0,122-ch1[1]*ch1[3]/4,0)
+	print(ch1[4],0,122-ch1[1]*ch1[3]/4,ch1[2])
+	print("█",2*3+1,122-ch2[1]*ch2[3]/4,0)
+	print(ch2[4],2*3+1,122-ch2[1]*ch2[3]/4,ch2[2])
+	print("█",2*6+2,122-ch3[1]*ch3[3]/4,0)
+	print(ch3[4],2*6+2,122-ch3[1]*ch3[3]/4,ch3[2])
+	print("█",2*9+3,122-ch4[1]*ch4[3]/4,0)
+	print(ch4[4],2*9+3,122-ch4[1]*ch4[3]/4,ch4[2])
 end 
 
 
 -- returns a table of four 
 -- pitch, instrument, vol, fx
-function get_note(sfx, time)
- local addr = %(0x3200 + 68*sfx + 2*time)
+function get_note(ch)
+ local sf = stat(16+ch)
+ local tm = stat(20+ch)
+ local addr = %(0x3200 + 68*sf + 2*tm)
  --      bitmap    sfx
  --       for         vol
  --      notes           inr
