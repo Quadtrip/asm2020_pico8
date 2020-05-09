@@ -150,7 +150,7 @@ function raycast()
    0,y,128,y,
    (25+(px/0.25)+(-msx+stx)*dby4),
    ((py/0.25)+(-msy+sty)*dby4),
-   d16*msx,d16*msy
+   d16*msx,d16*msy,0
   )
   end
 
