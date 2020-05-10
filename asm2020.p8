@@ -477,6 +477,15 @@ function casterpal()
  poke(0x5f2e,1)
 end
 
+
+function redpal()
+ poke4(0x5f10,0x8582.8000)
+ poke4(0x5f14,0x0706.8605)
+ poke4(0x5f18,0x088e.0987)
+ poke4(0x5f1c,0x8084.0288)
+ poke(0x5f2e,1)
+end
+
 precalc = 0
 ff = 0
 	phi = 0.0
