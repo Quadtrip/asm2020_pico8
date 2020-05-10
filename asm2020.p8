@@ -592,10 +592,10 @@ function _draw()
 	end
 
 	if rec == 1 then
- music_stats()
- print("",0,6*10,8)
- print(stat(25)%4)
- print(stat(25)%8)
+  music_stats()
+  print("",0,6*10,8)
+  print(stat(25)%4)
+  print(stat(25)%8)
  end
 
 		
