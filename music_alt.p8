@@ -15,11 +15,27 @@ inst={0,0,0,0}
 sefx={0,0,0,0}
 volu={0,0,0,0}
 
+
+-- which effect is played in ptr
+efu={0,0,0,0,0,0,0,0,
+     1,1,1,1,1,1,1,1,
+     0,0,0,0,0,0,0,0,
+     1,1,1,1,1,1,1,1,
+     0,0,0,0,0,0,0,0,
+     1,1,1,1,1,1,1,1}
+     
+-- control values for effects
+efv={0b00000000, -- efu 0
+     0b00001011, -- efu 1
+     0b11111111} -- efu 2? more?
+     
+
 scrstart=0x6000
 scrend=0x7fff
 t=0
-tt=0
-dt=0
+tt=.0
+dt=.0
+ot=.0
 xoff=0
 yoff=0
 cot=0
@@ -30,15 +46,45 @@ b=0
 c=0
 p=0
 bb=0
+dd=0
 sn_hit=0
-bd_hit=0
+hit={0,0,0,0,0}
+hitf={0,0,0,0,0}
 bd2=0
+dis=0
+dis_f=0
 rnd_efu=0
 rec=-1
+polys=7
+px={}
+py={}
 
+function rand_poly(x1,y1,x2,y2)
+ local i
+ 
+ for i=1,#px do
+  del(px,px[i])
+  del(py,py[i])
+ end
+ for i=1,polys do
+  add(px,mid(x1,x1+rnd(x2-x1),x2))
+  add(py,mid(y1,y1+rnd(y2-y1),y2))
+ end
+end
+
+function update_poly(hit)
+ for i=1,#px do
+  px[i]=px[i]-64
+  px[i]=px[i]*(0.7+0.35*(hit[3]))
+  px[i]=px[i]+64
+  py[i]=py[i]-64
+  py[i]=py[i]*(0.7+0.35*(hit[3]))
+  py[i]=py[i]+64
+ end
+end
 
 function _init()
- --[
+ --
  -- palette gradient
  poke4(0x5f10,0x8582.8000)
  poke4(0x5f14,0x0706.8605)
@@ -48,12 +94,11 @@ function _init()
  --]]
 	-- music init
 
-	poke(0x5f40,0b1111)
-	poke(0x5f41,0b0100)
+ poke(0x5f40,0b1111)
+	poke(0x5f41,0b0000)
 	poke(0x5f42,0b0000)
 	poke(0x5f43,0b0001)
-	
-	music(24)
+	music(0)
 
 end
  
@@ -61,7 +106,8 @@ snc=nil
 
 function _update60()
  ot=tt
- tt=time()*(0.05+sn_hit*0.028)
+ tt=time()--*(0.05+sn_hit*0.028)
+ 
  snc=cocreate(sync)
 	
  if snc and costatus(snc)!= 'dead' then
@@ -69,16 +115,19 @@ function _update60()
  else
   snc=nil
  end 
+ 
+ update_poly(hitf)
+ 
  dt=time()-tt
 end
 
 
 function sync()
- cot=cos(tt+t*2)
- sit=sin(tt-t*2)
+ cot=cos(f*0.004)
+ sit=sin(f*0.004)
  xoff=sin(tt*0.02)*20
  yoff=sin(tt*0.03)*22
- b=15-rnd_efu-btn()
+ b=15--rnd_efu-btn()
  bb=stat(26)/3.
  pattern=stat(24)
  ch1=get_note(0)
@@ -89,19 +138,26 @@ function sync()
  inst={ch1[2],ch2[2],ch3[2],ch4[2]}
  sefx={ch1[3],ch2[3],ch3[3],ch4[3]}
  volu={ch1[4],ch2[4],ch3[4],ch4[4]}
- 
  if note[2]==36 and inst[2]==6 and ti[2]+0.1>tt then
-  bd_hit=2
+  hitf[1]=5
   ti[2]=tt
+  dis_f=0
+  
  else
-  bd_hit=bd_hit*0.5
+  dis_f=dis_f*0.8
+  dis=flr(dis_f)
+  hitf[1]=hitf[1]*0.5
  end
- if pattern%8==0 and (flr(bb)==0 or flr(bb)==1) then
-  sn_hit=1
- elseif pattern%8==1 and (flr(bb)==0 or flr(bb)==1) then
-  sn_hit=0
+ for i=1,8 do
+  hit[i]=flr(hitf[i])
+ end
+ 
+ hit[2]=(note[2])
+ 
+ if hit[2]>2 then
+  hitf[3]=2 --hit[2]
  else
-  sn_hit=sn_hit*0.95
+  hitf[3]=hitf[3]*0.2
  end
  if note[2]==36 and ti[1]+dt*2>tt then 
   rnd_efu=rnd_efu+1 
@@ -110,40 +166,34 @@ function sync()
  if rnd_efu>8 then rnd_efu=0 end
  
  
- t=t*0.9+sn_hit*0.001
+ t=t+0.0005
  if rec==1 then
   update_music_stats()
  end
  yield()
 end
 
-
+f=0
 function _draw()
 --[
  memcpy(0x1000,0x6000,0x2000)
- rectfill(0,0,128,128,15)
- holdframe()
-	for mem=scrstart,scrend do
- 	if flr(mem>>>6)%2==0 then
- 	 mem=mem-(scrstart)
- 	 x=((mem%64-32)*cot-((mem>>>7)-32)*sit)
- 	 y=((mem%64-32)*sit+((mem>>>7)-32)*cot)
- 		mem=mem+(scrstart)
- 		c=(x^^y)*0.2+t*300--(1+sin(t)*8)
- 		p=@(mem-0x5000-bd_hit)
- 		p1=(flr(bd_hit*4)*(p+1))|((c&b))
- 		p2=(flr(bd_hit*4)*(p+1))|((c&b))
-  	poke(mem,((p2<<4)|p1)) 
-  	poke(mem-64,((p2<<4)|p1))
- 	end
-	end
+ cls()
+ f=f+1
+-- holdframe()
+ --if f%4==0 then
+ --poke(0x5f5e,0b10101010)
+ if efu[stat(24)+1]==0 then efu_lines(hit) end
+ if efu[stat(24)+1]==1 then efu_xor(hit) end
+ poke(0x6000,flr(f)*128)
+ --print(dt,0,7)
  if rec==1 then
  rectfill(0,0,31,128,0)
   draw_music_stats()
-  print(rnd_efu,0,6*8,8)
-  print(bd_hit)
+  print(rnd_efu,0,6*6,8)
+  print(hit[2])
   print(note[2])
   print(inst[2])
+  print(stat(7))
  end
  rec=btn()>>>12&1
  --]]
@@ -157,8 +207,93 @@ function _draw()
  --]]
 end
 
+function efu_lines(hit)
+ local i
+ local x
+ local p
+ local sc
+ 
+ for i=1,127 do
+  smcpy(0x6000+i*63-rnd(6),0x1000+i*63-rnd(6),rnd(128)) 
+ end
+  for i=1,#px do
+   ii=i+1
+   if ii>#px then ii=1 end
+   iii=ii+1
+   if iii>#px then iii=1 end
+   line(px[i],py[i],px[ii],py[ii],8+rnd(2)) 
+   line(px[ii],py[ii],px[iii],py[iii],8-rnd(2))
+  end
+ if hit[2]>35 then
+  sc=64
+  rand_poly(sc-rnd(2),sc-rnd(2),sc+rnd(2),sc+rnd(2))
+ end
+end
 
 
+function efu_xor(hit)
+	local x
+	local y
+	local xx
+	local yy
+	local mem
+	local c
+	local p
+	local p1
+	local p2
+	local b=efv[2]
+	for mem=0,0x1fff do
+	 xx=mem%64-32
+		if flr(xx)==0 then
+ 	 dd=rnd(dis)
+		end
+ 	if flr(mem>>>6)%2==0 then
+	  yy=flr(mem>>>6)-64
+ 	 x=xoff+(xx*cot-(yy/2)*sit)+(xx*yy)*0.01
+   y=yoff+(xx*sit+(yy/2)*cot)+(yy*xx)*0.01
+ 		c=(x^^y)*0.4+t*300--(1+sin(t)*8)
+ 		p=@(mem-0x5000-hit[1])
+ 		p1=(hit[1]*4*(p+1))|((c&b))
+ 		p2=(hit[1]*4*(p+1))|((c&b))
+  	spoke(mem+dis+0x6000,((p2<<4)|p1)) 
+  	spoke(mem+64-dis+0x6000,((p2<<4)|p1))
+   --spoke(1+mem+dis+0x6000,((p2<<4)|p1)) 
+  	--spoke(1+mem+64-dis+0x6000,((p2<<4)|p1))
+  	--spoke(mem+128+dis+0x6000,((p2<<4)|p1)) 
+   --spoke(mem+192-dis+0x6000,((p2<<4)|p1))
+  	--spoke(1+mem+128+dis+0x6000,((p2<<4)|p1)) 
+  	--spoke(1+mem+192-dis+0x6000,((p2<<4)|p1))
+ 	end
+	end
+end
+
+function spoke(mem,val)
+ while mem<0x6000 do
+  mem=mem+0x1fff 
+ end
+ while mem>0x7fff do
+  mem=mem-0x1fff
+ end
+ poke(mem,val)
+end
+
+function smcpy(to_mem,fr_mem,len)
+ if to_mem<0x6000 then to_mem=0x6000 end
+ if to_mem>0x7ffe then
+  to_mem=0x7ffe
+  len=1
+ end
+ if to_mem+len>0x7fff then len=0x7fff-to_mem end
+ --if fr_mem<0x6000 then fr_mem=0x6000 end
+ if fr_mem>0x7ffe then
+  fr_mem=0x7ffe
+  len=1
+ end
+ if fr_mem+len>0x7fff then len=0x7fff-fr_mem end
+ 
+ memcpy(to_mem,fr_mem,len)
+
+end
 
 function stats(i,k,x,y,text)
  local note={}
@@ -381,6 +516,9 @@ kk22kkkkkkkkgggggggg0ggg0g0g0g0ggg0gggggggggiiiiiiiilliillllllll55555555mm55mmmm
 22kkkkkkkkkkgggggggggg0g0g0g0g0g0gggggggggggiiiiiiiiiillllllllll5555555555mmmmmmmmmm66666666667777777777nnnnnnnnnn9999999999uuuu
 2222kkkkkkkkkkgggggggggg0g0g0g0g0gggggggggggiiiiiiiiiillllllllll5555555555mmmmmmmmmm66666666667777777777nnnnnnnnnn9999999999uuuu
 
+__map__
+0000000202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 0101000418070130701b0701f07000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0101000418070140701b0702007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -427,7 +565,23 @@ __sfx__
 010300202993029920299202992029920299202992029920000000000000000000002993029920299202992029920299202992029920000000000000000000002993029920299202992029920299202992029000
 0103002029a3029a2029a2029a2029a2029a2029a2029a200000000000000000000029a3029a2029a2029a2029a2029a2029a2029a200000000000000000000029a3029a2029a2029a2029a2029a2029a2029000
 __music__
-01 0d1a0d22
+01 601a2048
+00 601a2148
+00 601a2a48
+00 601b2948
+00 601a2148
+00 601a2848
+00 601a2b48
+00 601b2948
+00 0d1a2022
+00 0a1a2123
+00 0b1a2a24
+00 0c1b2925
+00 0a1a2122
+00 0a1a2823
+00 131a2b24
+00 141b2925
+00 0d1a0d22
 00 0a1a0a23
 00 0b1a0b24
 00 0c1b0c25
@@ -442,15 +596,7 @@ __music__
 00 121a0a22
 00 121a0a23
 00 181a1324
-02 191b1425
-01 22424344
-00 23424344
-00 24424344
-02 25424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
+00 191b1425
 01 0d1a2022
 00 0a1a2123
 00 0b1a2a24
@@ -459,12 +605,4 @@ __music__
 00 0a1a2823
 00 131a2b24
 02 141b2925
-00 60422048
-00 60422148
-00 60422148
-00 60422948
-00 60422148
-00 60422848
-00 60422148
-02 60422948
 
