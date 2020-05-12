@@ -4,7 +4,7 @@ __lua__
 -- main
 
 -- which effect is played in ptr
-efu={4,4,4,4,4,4,4,4,
+efu={3,4,3,4,3,4,3,4,
      3,4,4,4,4,4,4,4,
      5,6,6,6,6,6,6,6,
      3,7,7,7,7,7,7,7,
@@ -37,6 +37,8 @@ rxi = {}
 lyi = {}
 ryi = {}
 
+px = 10
+py = 10
 
 -- these will contain values
 -- for their channels, and
@@ -112,26 +114,6 @@ function _init()
 	 ryi[i] = 0
 	end
 
-	-- torus
-	c = 4.0
-	local a = 1
-	pi = 3.1415
-
-	for y = 0, 64 do
-		for x = 0, 64 do
-		 xx = (x/64)*0.03
-		 yy = (y/64)*0.2
-			xt = (c+a*cos(2*pi*yy))*cos(2*pi*xx)
-			yt = (c+a*cos(2*pi*yy))*sin(2*pi*xx)
-			zt = a*sin(2*pi*yy)
-			nn = abs(noise(xt,yt,zt)*21)
-
-
-			mset(x+64,y,nn)
-
-		end
-	end
-
 	-- effuu
 	
 	-- create a polyline
@@ -152,8 +134,10 @@ function _init()
 	poke(0x5f41,0b0000) --reverb
 	poke(0x5f42,0b0000) --dist
 	poke(0x5f43,0b0001) --lowpass
+
 	music(0)
 	
+
 end
 
 
@@ -251,7 +235,10 @@ function spritelogic()
 
 end
 
+calcvoxel = 1
+
 function do_update()
+
 
 	oldt = t
 	t=time()
@@ -316,7 +303,6 @@ function _draw2()
 
 	if effu == 0 then
 		voxel()
-		voxelpal()
 	end
 
 	if effu == 1 then
@@ -1304,8 +1290,40 @@ end
 precalc = 0
 ff = 0
 	phi = 0.0
- 
+
+nohh = {}
+
 function voxel()
+	cls()
+
+	-- torus
+	c = 4.0
+	local a = 1
+	pi = 3.1415
+
+	ii = 0
+	nn = 0
+
+	for y = 0, 64 do
+		for x = 0, 64 do
+			if precalc == 0 then
+		 xx = (x/64)*0.03
+		 yy = (y/64)*0.2
+			xt = (c+a*cos(2*pi*yy))*cos(2*pi*xx)
+			yt = (c+a*cos(2*pi*yy))*sin(2*pi*xx)
+			zt = a*sin(2*pi*yy)
+			nn = abs(noise(xt,yt,zt)*21)
+			nohh[ii] = nn
+			else
+			nn = nohh[ii]
+			mset(x+64,y,nn)
+			end
+
+			ii+=1
+		end
+	end
+
+
 	ff+=1
 	if (ff > 1) then ff = 0 end
 
@@ -1316,8 +1334,7 @@ function voxel()
 	py=-time()*40
 	px=-cos(time()*0.1)*15
 
-	phi = 0.07+cos(time()*0.01)*0.5
-	
+	phi = 0.07+cos(time()*0.01)*0.5	
 
 	sinphi = sin(phi)
 	cosphi = cos(phi)
@@ -1363,17 +1380,17 @@ function voxel()
 		
 		for i = 0, 127,2 do
 			mt = mget(64+(lx&63),ly&63)
+
 			hs = (eh - mt) / z * sc + hori
 			mt-=flr(z*0.06)
 			if (mt<0) then mt = 0 end
 			rectfill(i,hs,i+1,128-z*0.5,mt)
 			lx += dx*2
 		end
-
 	end
-
 	rectfill(0,128-17,128,128,0)
 	
+	voxelpal()
 	precalc = 1
 end 
 -->8
