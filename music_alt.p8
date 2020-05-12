@@ -28,13 +28,13 @@ hitf={0,0,0,0,0}
 
 
 -- which effect is played in ptr
-efu={0,0,0,0,0,0,0,0,
+efu={2,2,2,2,2,2,2,2,
+     3,0,0,0,0,0,0,0,
+     3,0,0,0,0,0,0,0,
      --1,1,1,1,1,1,1,1,
-     0,0,0,0,0,0,0,0,
-     --1,1,1,1,1,1,1,1,
-     0,0,0,0,0,0,0,0,
-     1,1,1,1,1,1,1,1,
-     0,0,0,0,0,0,0,0}
+     3,0,0,0,0,0,0,0,
+     4,1,1,1,1,1,1,1,
+     3,0,0,0,0,0,0,0}
      
 -- select by using efu[stat(24)]
 -- and show scene based on that     
@@ -109,10 +109,13 @@ function _update60()
  -- this is where you'd update
  -- values basaed on the current
  -- pattern and efu
- if efu[stat(24)]==1 then
+ if efu[stat(24)+1]%2==0 then
   update_poly(hitf)
-  prot.z=prot.z+(sefx[1]&0b0001)*4
-  rotate_poly(prot.z,0.01*(hitf[3]-1)*0.4,0)
+  --prot.z=prot.z+(sefx[1]&0b0001)*4
+  prot.y=prot.y+0.01*(hitf[3]-1)*0.4
+  rotate_poly(prot.x,prot.y,prot.z)
+ else
+ 	stop_poly()
  end
  
  dt=time()-tt
@@ -211,11 +214,27 @@ function _draw()
  if efu[stat(24)+1]==0 then
   cur_ef=cocreate(efu_lines) 
  end
+ if efu[stat(24)+1]==2 then
+  cur_ef=cocreate(efu_lines) 
+ end
+ if efu[stat(24)+1]==3 then
+  if stat(21)<=8 then
+   cur_ef=cocreate(efu_border)
+  else
+  	cur_ef=cocreate(efu_lines)
+  end 
+ end
+ if efu[stat(24)+1]==4 then
+  if stat(21)<=8 then
+   cur_ef=cocreate(efu_border)
+  else
+  	cur_ef=cocreate(efu_xor)
+  end 
+ end
 	
  if cur_ef and costatus(cur_ef)!= 'dead' then
   if efu[stat(24)+1]==1 then
    if f%2==0 then coresume(cur_ef) end
-   efu_wiggle(0.1)
   else
    coresume(cur_ef)
   end
@@ -248,6 +267,21 @@ function debug_palette()
  end
 end 
 
+function efu_smear()
+ local i
+ for i=1,127 do
+  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
+ end 
+end
+
+function efu_border()
+ rectfill(1,0,3,128,8-rnd(4))
+ line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
+ efu_wiggle(10)
+ efu_smear()
+ yield()
+end
+
 
 -- polyline scene
 function efu_lines()
@@ -259,10 +293,10 @@ function efu_lines()
  local p
  local sc
  cls(bg)
- for i=1,127 do
-  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
- end 
-  efu_wiggle(1.5)
+ if efu[stat(24)+1]!=2 then 
+  efu_smear()
+ end
+ efu_wiggle(1.5)
  for i=1,#px do
   ii=i+1
   if ii>#px then ii=1 end
@@ -376,6 +410,9 @@ polys=5
 px={}
 py={}
 pz={}
+vx={}
+vy={}
+vz={}
 prot={x=0.0,y=0.0,z=0.0}
 
 function rand_poly(x1,y1,z1,x2,y2,z2)
@@ -385,23 +422,43 @@ function rand_poly(x1,y1,z1,x2,y2,z2)
   del(px,px[i])
   del(py,py[i])
   del(pz,pz[i])
+  del(vx,vx[i])
+  del(vy,vy[i])
+  del(vz,vz[i])
  end
  for i=1,polys do
   add(px,mid(x1,x1+rnd(x2-x1),x2))
   add(py,mid(y1,y1+rnd(y2-y1),y2))
   add(pz,mid(z1,z1+rnd(z2-z1),z2))
+  add(vx,0)
+  add(vy,0)
+  add(vz,0)
  end
 end
 
 function update_poly(hit)
  for i=1,#px do
-  px[i]=px[i]*(0.7+0.35*(hit[3]))
-  py[i]=py[i]*(0.7+0.35*(hit[3]))
-  pz[i]=pz[i]*(0.7+0.35*(hit[3]))
+  px[i]=px[i]
+  py[i]=py[i]+vy[i]
+  pz[i]=pz[i]
+  vy[i]=vy[i]+1
+  if vy[i]>10 then vy[i]=10 end
+  if py[i]+vy[i]>100 then vy[i]=-vy[i]*0.9 end
  end
  prot.x=prot.x*0.6
  prot.y=prot.y*0.6
  prot.z=prot.z*0.6
+end
+
+function stop_poly()
+ for i=1,#px do
+  vx[i]=0
+  vy[i]=0
+  vz[i]=0
+ end
+ prot.x=0
+ prot.y=0
+ prot.z=0
 end
 
 function rotate_poly(x,y,z)
@@ -668,7 +725,7 @@ __map__
 0000000202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-0101000418070130701b0701f07000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0001000418070130701b0701f07000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0101000418070140701b0702007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0101000418070140701b0702407000002000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -745,7 +802,7 @@ __music__
 00 121a0a23
 00 181a1324
 00 191b1425
-01 0d1a2022
+00 0d1a2022
 00 0a1a2123
 00 0b1a2a24
 00 0c1b2925
