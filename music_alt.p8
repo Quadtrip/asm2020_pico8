@@ -10,19 +10,34 @@ ch2={}
 ch3={}
 ch4={}
 ti={0,0,0,0,0,0}
+
+-- these will contain values
+-- for their channels, and
+-- can be used for more exact
+-- syncing, for example:
+-- hit[1]=(sefx[1]&0b0011)
+-- and so whenever there's a
+-- bd hit (fx 3) on track 1,
+-- hit[1] will be 1
 note={0,0,0,0}
 inst={0,0,0,0}
 sefx={0,0,0,0}
 volu={0,0,0,0}
+hit={0,0,0,0,0}
+hitf={0,0,0,0,0}
 
 
 -- which effect is played in ptr
 efu={0,0,0,0,0,0,0,0,
-     1,1,1,1,1,1,1,1,
+     --1,1,1,1,1,1,1,1,
+     0,0,0,0,0,0,0,0,
+     --1,1,1,1,1,1,1,1,
      0,0,0,0,0,0,0,0,
      1,1,1,1,1,1,1,1,
-     0,0,0,0,0,0,0,0,
-     1,1,1,1,1,1,1,1}
+     0,0,0,0,0,0,0,0}
+     
+-- select by using efu[stat(24)]
+-- and show scene based on that     
      
 -- control values for effects
 efv={0b00000000, -- efu 0
@@ -48,42 +63,17 @@ p=0
 bb=0
 dd=0
 sn_hit=0
-hit={0,0,0,0,0}
-hitf={0,0,0,0,0}
 bd2=0
 dis=0
 dis_f=0
 rnd_efu=0
 rec=-1
-polys=7
-px={}
-py={}
 
-function rand_poly(x1,y1,x2,y2)
- local i
- 
- for i=1,#px do
-  del(px,px[i])
-  del(py,py[i])
- end
- for i=1,polys do
-  add(px,mid(x1,x1+rnd(x2-x1),x2))
-  add(py,mid(y1,y1+rnd(y2-y1),y2))
- end
-end
-
-function update_poly(hit)
- for i=1,#px do
-  px[i]=px[i]-64
-  px[i]=px[i]*(0.7+0.35*(hit[3]))
-  px[i]=px[i]+64
-  py[i]=py[i]-64
-  py[i]=py[i]*(0.7+0.35*(hit[3]))
-  py[i]=py[i]+64
- end
-end
 
 function _init()
+
+ -- create a polyline
+ rand_poly(-100,-100,50,100,100,250)
  --
  -- palette gradient
  poke4(0x5f10,0x8582.8000)
@@ -92,12 +82,12 @@ function _init()
  poke4(0x5f1c,0x8084.0288)
  poke(0x5f2e,1)
  --]]
+ 
 	-- music init
-
- poke(0x5f40,0b1111)
-	poke(0x5f41,0b0000)
-	poke(0x5f42,0b0000)
-	poke(0x5f43,0b0001)
+ poke(0x5f40,0b1111) --speed
+	poke(0x5f41,0b0000) --reverb
+	poke(0x5f42,0b0000) --dist
+	poke(0x5f43,0b0001) --lowpass
 	music(0)
 
 end
@@ -116,12 +106,22 @@ function _update60()
   snc=nil
  end 
  
- update_poly(hitf)
+ -- this is where you'd update
+ -- values basaed on the current
+ -- pattern and efu
+ if efu[stat(24)]==1 then
+  update_poly(hitf)
+  prot.z=prot.z+(sefx[1]&0b0001)*4
+  rotate_poly(prot.z,0.01*(hitf[3]-1)*0.4,0)
+ end
  
  dt=time()-tt
 end
 
-
+--sync keeps track of music
+--and values related to it
+--(also some redundant/deprec.
+-- things)
 function sync()
  cot=cos(f*0.004)
  sit=sin(f*0.004)
@@ -152,38 +152,67 @@ function sync()
   hit[i]=flr(hitf[i])
  end
  
+ -- it seems the best way to
+ -- get reliable results is
+ -- to get the values to hit{}
+ -- and then based on that,
+ -- have hitf{} contain a float
+ -- that fades down after it's
+ -- triggered
+ 
  hit[2]=(note[2])
+ hit[4]=(volu[2])
  
  if hit[2]>2 then
   hitf[3]=2 --hit[2]
  else
   hitf[3]=hitf[3]*0.2
  end
+ if hit[4]>2 then
+  hitf[4]=0.4
+ else
+  hitf[4]=hitf[4]*0.2
+ end
+ 
+ -- deprecated, but another way
+ -- to keep track of things
+ -- didn't work well, though
  if note[2]==36 and ti[1]+dt*2>tt then 
   rnd_efu=rnd_efu+1 
   ti[1]=tt
  end
  if rnd_efu>8 then rnd_efu=0 end
- 
- 
+
  t=t+0.0005
  if rec==1 then
   update_music_stats()
  end
- yield()
+ yield() --coroutine stuff \😐/
 end
 
 f=0
 function _draw()
 --[
+
+ -- keep a copy of the screen
+ -- outside of screen memory
+ -- so we can do stuff like
+ -- fades and things just by
+ -- poking the memory around
  memcpy(0x1000,0x6000,0x2000)
  cls()
  f=f+1
--- holdframe()
+ --holdframe()
  --if f%4==0 then
  --poke(0x5f5e,0b10101010)
- if efu[stat(24)+1]==0 then efu_lines(hit) end
  if efu[stat(24)+1]==1 then efu_xor(hit) end
+ if efu[stat(24)+1]==0 then
+  efu_lines(hit) 
+ end
+ --a pixel in the top left
+ --for keeping an eye on fps
+ --(blinks between two 
+ -- colors)
  poke(0x6000,flr(f)*128)
  --print(dt,0,7)
  if rec==1 then
@@ -207,30 +236,43 @@ function _draw()
  --]]
 end
 
+
+-- polyline scene
 function efu_lines(hit)
  local i
  local x
+ local dx={}
+ local dy={}
+ local fv=40
  local p
  local sc
  
  for i=1,127 do
-  smcpy(0x6000+i*63-rnd(6),0x1000+i*63-rnd(6),rnd(128)) 
+  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
+ end 
+  efu_wiggle(hitf)
+ for i=1,#px do
+  ii=i+1
+  if ii>#px then ii=1 end
+  iii=ii+1
+  if iii>#px then iii=1 end
+  dx[1]=(px[i]*(fv/pz[i])+64)
+  dy[1]=(py[i]*(fv/pz[i])+64)
+  dx[2]=(px[ii]*(fv/pz[ii])+64)
+  dy[2]=(py[ii]*(fv/pz[ii])+64)
+  dx[3]=(px[iii]*(fv/pz[iii])+64)
+  dy[3]=(py[iii]*(fv/pz[iii])+64)
+  line(dx[1],dy[1],dx[2],dy[2],8+rnd(2)) 
+  line(dx[2],dy[2],dx[3],dy[3],8-rnd(2))
  end
-  for i=1,#px do
-   ii=i+1
-   if ii>#px then ii=1 end
-   iii=ii+1
-   if iii>#px then iii=1 end
-   line(px[i],py[i],px[ii],py[ii],8+rnd(2)) 
-   line(px[ii],py[ii],px[iii],py[iii],8-rnd(2))
-  end
  if hit[2]>35 then
-  sc=64
-  rand_poly(sc-rnd(2),sc-rnd(2),sc+rnd(2),sc+rnd(2))
+  sc=640
+  rand_poly(-100,-100,50,100,100,250)
  end
 end
 
-
+-- xor twisting and stuff
+-- needs optimisation
 function efu_xor(hit)
 	local x
 	local y
@@ -257,16 +299,32 @@ function efu_xor(hit)
  		p2=(hit[1]*4*(p+1))|((c&b))
   	spoke(mem+dis+0x6000,((p2<<4)|p1)) 
   	spoke(mem+64-dis+0x6000,((p2<<4)|p1))
-   --spoke(1+mem+dis+0x6000,((p2<<4)|p1)) 
-  	--spoke(1+mem+64-dis+0x6000,((p2<<4)|p1))
-  	--spoke(mem+128+dis+0x6000,((p2<<4)|p1)) 
-   --spoke(mem+192-dis+0x6000,((p2<<4)|p1))
-  	--spoke(1+mem+128+dis+0x6000,((p2<<4)|p1)) 
-  	--spoke(1+mem+192-dis+0x6000,((p2<<4)|p1))
+   
+   --[[ one way to optimize
+   --   is to just cut down the
+   --   resolution, these would
+   --   fill the black space
+   --
+   spoke(1+mem+dis+0x6000,((p2<<4)|p1)) 
+  	spoke(1+mem+64-dis+0x6000,((p2<<4)|p1))
+  	spoke(mem+128+dis+0x6000,((p2<<4)|p1)) 
+   spoke(mem+192-dis+0x6000,((p2<<4)|p1))
+  	spoke(1+mem+128+dis+0x6000,((p2<<4)|p1)) 
+  	spoke(1+mem+192-dis+0x6000,((p2<<4)|p1))
+ 	 --]]
  	end
 	end
 end
 
+
+--horisontal screen wiggling
+function efu_wiggle(hit)
+ for i=1,127 do
+  smcpy(0x6000+i*63+sin(tt+i*(0.02*hit[4]))*(note[3]/18.),0x6000+i*63,64) 
+ end
+end
+
+--wrapping screen memory poke
 function spoke(mem,val)
  while mem<0x6000 do
   mem=mem+0x1fff 
@@ -277,6 +335,7 @@ function spoke(mem,val)
  poke(mem,val)
 end
 
+--memcopy that doesn't overflow
 function smcpy(to_mem,fr_mem,len)
  if to_mem<0x6000 then to_mem=0x6000 end
  if to_mem>0x7ffe then
@@ -294,6 +353,80 @@ function smcpy(to_mem,fr_mem,len)
  memcpy(to_mem,fr_mem,len)
 
 end
+
+-->8
+--some rudimentary 3d-shapes
+
+polys=5
+px={}
+py={}
+pz={}
+prot={x=0.0,y=0.0,z=0.0}
+
+function rand_poly(x1,y1,z1,x2,y2,z2)
+ local i
+ 
+ for i=1,#px do
+  del(px,px[i])
+  del(py,py[i])
+  del(pz,pz[i])
+ end
+ for i=1,polys do
+  add(px,mid(x1,x1+rnd(x2-x1),x2))
+  add(py,mid(y1,y1+rnd(y2-y1),y2))
+  add(pz,mid(z1,z1+rnd(z2-z1),z2))
+ end
+end
+
+function update_poly(hit)
+ for i=1,#px do
+  px[i]=px[i]*(0.7+0.35*(hit[3]))
+  py[i]=py[i]*(0.7+0.35*(hit[3]))
+  pz[i]=pz[i]*(0.7+0.35*(hit[3]))
+ end
+ prot.x=prot.x*0.6
+ prot.y=prot.y*0.6
+ prot.z=prot.z*0.6
+end
+
+function rotate_poly(x,y,z)
+ local cox=cos(x)
+ local six=sin(x)
+ local coy=cos(y)
+ local siy=sin(y)
+ local coz=cos(z)
+ local siz=sin(z)
+ local xx={}
+ local yy={}
+ local zz={}
+ xx[4]=0
+ yy[4]=0
+ zz[4]=150
+ cox=cos(x)
+ six=sin(x)
+ coy=cos(y)
+ siy=sin(y)
+ coz=cos(z)
+ siz=sin(z)
+ 
+ for i=1,#px do
+  zz[5]=pz[i]-zz[4]
+  xx[1]= (xx[4])+px[i]*coy-zz[5]*siy
+  yy[1]= (yy[4])+py[i]
+  zz[1]=-(zz[4])+px[i]*siy+zz[5]*coy
+  
+  xx[2]=xx[1]
+  yy[2]=yy[1]*cox-zz[1]*six
+  zz[2]=yy[1]*six+zz[1]*cox
+  
+  px[i]=xx[2]*coz-yy[2]*siz
+  py[i]=xx[2]*siz+yy[2]*coz
+  pz[i]=zz[2]+zz[4]*2
+ end
+end
+-->8
+--music helpers
+
 
 function stats(i,k,x,y,text)
  local note={}
