@@ -3,28 +3,22 @@ version 27
 __lua__
 -- main
 
-mw = 24
-mh = 24
-w = 128
-h = 128
-texw = 64.0
-texh = 64.0
-
-px = 56
-py = 10.5
-
-a = 0
-
-dirx = -1
-diry = 0
-
-planex = 0
-planey = 0.66
-
-moved = 1
-
-clrmode = 0
-skew = 0
+-- which effect is played in ptr
+efu={4,4,4,4,4,4,4,4,
+     3,4,4,4,4,4,4,4,
+     5,6,6,6,6,6,6,6,
+     3,7,7,7,7,7,7,7,
+     1,2,2,2,2,2,2,2,
+     0,0,0,0,0,0,0,0}
+     
+-- select by using efu[stat(24)]
+-- and show scene based on that     
+     
+-- control values for effects
+efv={0b00000000, -- efu_lines
+     0b00001011, -- efu_xor
+     0b11111111} -- efu 2? more?
+ 
 
 oldt = 0
 t = 0
@@ -43,15 +37,6 @@ rxi = {}
 lyi = {}
 ryi = {}
 
-rates={}
-reverb={}
-distorsion={}
-filter={}
-ch1={}
-ch2={}
-ch3={}
-ch4={}
-ti={0,0,0,0,0,0}
 
 -- these will contain values
 -- for their channels, and
@@ -69,46 +54,12 @@ hit={0,0,0,0,0}
 hitf={0,0,0,0,0}
 
 
--- which effect is played in ptr
-efu={2,2,2,2,2,2,2,2,
-     3,0,0,0,0,0,0,0,
-     3,0,0,0,0,0,0,0,
-     --1,1,1,1,1,1,1,1,
-     3,0,0,0,0,0,0,0,
-     4,1,1,1,1,1,1,1,
-     3,0,0,0,0,0,0,0}
-     
--- select by using efu[stat(24)]
--- and show scene based on that     
-     
--- control values for effects
-efv={0b00000000, -- efu 0
-     0b00001011, -- efu 1
-     0b11111111} -- efu 2? more?
-     
+    
 bg=0
-scrstart=0x6000
-scrend=0x7fff
 
 tt=.0
 dt=.0
 ot=.0
-xoff=0
-yoff=0
-cot=0
-sit=0
-of=0
-f=0
-b=0
-c=0
-p=0
-bb=0
-dd=0
-sn_hit=0
-bd2=0
-dis=0
-dis_f=0
-rnd_efu=0
 rec=-1
 
 local bun2 = {
@@ -148,13 +99,13 @@ function _init()
 	add(sp,bun2)
 	
 	for y = 1, h+64, 1 do
-			cd = h / (2.0 * (y-1) - h)
-			dpre[y] = cd
+		cd = h / (2.0 * (y-1) - h)
+		dpre[y] = cd
 	end
 
 	-- voxel
 	
-		for i = 1, 256 do
+	for i = 1, 256 do
 	 lxi[i] = 0
 	 rxi[i] = 0
 	 lyi[i] = 0
@@ -183,9 +134,10 @@ function _init()
 
 	-- effuu
 	
-	 -- create a polyline
+	-- create a polyline
  rand_poly(-100,-100,50,100,100,250)
  --
+ --[[
  -- palette gradient
  poke4(0x5f10,0x8582.8000)
  poke4(0x5f14,0x0706.8605)
@@ -193,7 +145,8 @@ function _init()
  poke4(0x5f1c,0x8084.0288)
  poke(0x5f2e,1)
  --]]
-
+ redpal()
+ 
 	-- music init
  poke(0x5f40,0b1111) --speed
 	poke(0x5f41,0b0000) --reverb
@@ -203,217 +156,6 @@ function _init()
 	
 end
 
-function raycast()
-
- local msx=planex
- local msy=planey
- 
- local stx=dirx
- local sty=diry
-
-	poke(0x5f38, 4)
-	poke(0x5f39, 4)
-
- for y=64,128 do  
-  local dist=(1024/(2*y-128+1))
-
-  local dby4=dist/2
-  local d16=dby4/64
-  
-  tline(
-   0,y,128,y,
-   (25+(px/0.25)+(-msx+stx)*dby4),
-   ((py/0.25)+(-msy+sty)*dby4),
-   d16*msx,d16*msy,0
-  )
-  end
-
-	texw = 32
-	texh = 32
-
-	poke(0x5f38, flr(texw))
-	poke(0x5f39, flr(texh))
-
- -- walls
-	for x = 0, w, 1 do
-		local camx = 2.0 * x / 128.0 - 1.0
-		local rdx = dirx + planex * camx
-		local rdy = diry + planey * camx
-		
-		local mx = flr(px)
-		local my = flr(py)
-		
-		local sdx = 0
-		local sdy = 0
-		
-		local ddx = abs(1.0 / rdx)
-		local ddy = abs(1.0 / rdy)
-		
-		local pwalld = 0
-		
-		local stepx = 0
-		local stepy = 0
-		
-		local hit = 0
-		
-		local side = 0
-		
-		if (rdx < 0) then
-			stepx = -1
-			sdx = (px - mx) * ddx
-		else
-			stepx = 1
-			sdx = (mx + 1.0 - px) * ddx
-		end
-
-		if (rdy < 0) then
-			stepy = -1
-			sdy = (py - my) * ddy
-		else
-			stepy = 1
-			sdy = (my + 1.0 - py) * ddy
-		end
-		
-		while(1==1) do
-			if (hit == 1) then break end
-			if (sdx < sdy) then
-				sdx += ddx
-				mx += stepx
-				side = 0
-			else
-				sdy += ddy
-				my += stepy
-				side = 1
-			end
-			mt = mget(mx,my)
-			if(mt == 0) then hit = 0
-			elseif(mt == 20 and sdx < 2) then hit = 2
-			else hit = 1 end
-		end -- dda
-	
-		if (side == 0) then
-			pwalld = (mx - px + (1.0 - stepx) / 2.0) / rdx
-		else
-			pwalld = (my - py + (1.0 - stepy) / 2.0) / rdy
-		end
-
-		texnum = mget(mx,my)
-		hiwall = 0
-
-		if (texnum >= 19) then texnum = texnum-12 hiwall = 1 end
-
-		lineh = flr(h / pwalld)
-		
-		draws = flr(-lineh / (2-hiwall) + h / 2)
-		if (draws < 0) then draws = 0 end
-		drawe = flr(lineh / 2 + h / 2)-1
-		if (drawe >= h) then drawe = h-1 end
-	
-		
-		wallx = 0.0
-		
-		if (side == 0) then
-			wallx = py + pwalld * rdy
-		else
-			wallx = px + pwalld * rdx
-		end
-		
-		wallx -= flr(wallx)
-		
-		u = flr(wallx * texw)
-		if (side == 0 and rdx > 0) then
-			u = texw - u - 1
-		end
-
-		if (side == 1 and rdy < 0) then
-			u = texw - u - 1 
-		end
-		
-		pstep = (1.0 * texh) / lineh
-		
-		texpos = (draws - 63 + lineh / 2.0) * pstep
-		v = texpos
-
- 	palt(0,false)
-
-		if (side == 2) then
-			pal(1,0)
-			pal(2,0)
-			pal(3,0)
-			pal(4,1)
-			pal(5,0)
-			pal(6,5)
-			pal(7,6)
-			pal(8,2)
-			pal(9,2)
-			pal(10,4)
-			pal(11,3)
-			pal(12,5)
-			pal(13,1)
-			pal(14,4)
-			pal(15,4)
-		end
-
-		tline(x,draws,x,drawe,8+8*flr(texnum/5)+rotr(u,3),((texnum-1)%4)*8+rotr(v,3),0,rotr(pstep,3),0)
-		zbuf[x] = pwalld
-
-		pal()
-	end -- wall
-	
-	--sprites
-		i = 1
-	for s in all(sp) do
-		spord[i] = i
-		spdist[i] = ((px - s.x) * (px - s.x) + (py - s.y) * (py - s.y))
-		i+=1
-	end
-
-	ce_heap_sort(sp,px,py)	
-
-	i = 1
-	for s in all(sp) do
-		sx = sp[spord[i]].x - px
-		sy = sp[spord[i]].y - py
-		
-		invd = 1.0 / (planex * diry - dirx * planey)
-	
-		tx = invd * (diry * sx - dirx * sy)
-		ty = invd * (-planey * sx + planex * sy)
-
-		ssx = flr((w/2) * (1+tx/ty))
-			
- 	--h
-		sprh = abs(flr(h/ty))
-		
-		dsy = -sprh / 2 + h / 2
-		if (dsy < 1) then dsy = 1 end
-		dey = sprh / 2 + h / 2
-		if (dey >= h) then dey = h-1 end
-		
-		--w
-		sprw = abs(flr(h/ty))
-		dsx = -sprw / 2 + ssx		
-		dex = sprw / 2 + ssx
-		if (dex >= w) then dex = w-1 end
-
-		zs = flr(abs(dsx+8))
-		ze = flr(abs(dex-8))
-		
-		if (ze >= w) ze = w-1
-		if (zs >= w) zs = w-1
-
-		if (ze == 0) ze = 1
-		if (zs == 0) zs = 1
-		
-		if (ty > 0 and ty < zbuf[zs] and ty < zbuf[ze]) then
-			sspr(s.s_x,s.s_y,s.s_w,s.s_h,dsx,dsy,sprw,sprh)
-		end
-			
-		i+=1
-	end
-	-- sprites
-	
-end
 
 function keylogic()
 	moves = ft * 4.0
@@ -520,124 +262,11 @@ function do_update()
 
 end
 
-function sky()
-
-	rectfill(0,0,128,8,7)
-
-	rectfill(0,8+16,128,8+24,2)
-
-	for x = -50, 50 do
-	map(36,0, a*140+x*4*8,8, 4,2)
-	map(36,2, a*80+x*4*8,8+24, 4,2)
-	map(36,4, a*40+x*4*8,8+40, 4,2)
-	end
-
-
-end
-
-function voxelpal()
-	poke4(0x5f10,0x8582.8000)
- poke4(0x5f14,0x8d05.8483)
- poke4(0x5f18,0x8f86.0d8c)
- poke4(0x5f1c,0x0787.0f06)
- poke(0x5f2e,1)
-end
- 
-function casterpal()
-	poke4(0x5f10,0x0706.0580)
- poke4(0x5f14,0x0d0c.8c01)
- poke4(0x5f18,0x0989.0484)
- poke4(0x5f1c,0x8a8b.0383)
- poke(0x5f2e,1)
-end
-
-
-function redpal()
- poke4(0x5f10,0x8582.8000)
- poke4(0x5f14,0x0706.8605)
- poke4(0x5f18,0x088e.0987)
- poke4(0x5f1c,0x8084.0288)
- poke(0x5f2e,1)
-end
-
-precalc = 0
-ff = 0
-	phi = 0.0
- 
-function voxel()
-	ff+=1
-	if (ff > 1) then ff = 0 end
-
-	eh = 50
-	sc = 50
-	dist = 155.0
-
-	py=-time()*40
-	px=-cos(time()*0.1)*15
-
-	phi = 0.07+cos(time()*0.01)*0.5
-	
-
-	sinphi = sin(phi)
-	cosphi = cos(phi)
-	precalc = 0
-
-	ii = 1
-	z = dist
-	zz = 2.0
-	for ii = 1, 256 do
-
-	hori = abs(100-abs(cos(time()*1+ii*0.001)*time()*5))
-
-		z -= zz
-		if (z < 20) then break end
-		zz = z*0.02
-
-
-		if(precalc==0) then
-			lx = (-cosphi*z - sinphi*z) + px
-			ly = (sinphi*z - cosphi*z) + py
-	
-			rx = (cosphi*z - sinphi*z) + px
-			ry = (-sinphi*z - cosphi*z) + py
-	
-			dx = rotr(rx-lx,7)
-		
-			lxi[ii] = lx	
-			rxi[ii] = rx	
-			lyi[ii] = ly	
-			ryi[ii] = ry	
-		else
-		
-			lx = lxi[ii]+px
-			rx = rxi[ii]+px
-			ly = lyi[ii]+py
-			ry = ryi[ii]+py
-			dx = rotr(rx-lx,7)
-		end
-		
-		
-	
-		ii += 1
-		
-		for i = 0, 127,2 do
-			mt = mget(64+(lx&63),ly&63)
-			hs = (eh - mt) / z * sc + hori
-			mt-=flr(z*0.06)
-			if (mt<0) then mt = 0 end
-			rectfill(i,hs,i+1,128-z*0.5,mt)
-			lx += dx*2
-		end
-
-	end
-
-	rectfill(0,128-17,128,128,0)
-	
-	precalc = 1
-end 
 
 frame = 0
 effu = 0
+snc=nil
+
 
 function _update60()
 	do_update()
@@ -668,7 +297,7 @@ function _update60()
  dt=time()-tt
 
 end
- 
+ --[[
 function _draw2()
 	cls(0)
 
@@ -704,134 +333,47 @@ function _draw2()
  end
 	
 end
-
-snc=nil
-
---sync keeps track of music
---and values related to it
---(also some redundant/deprec.
--- things)
-function sync()
- cot=cos(f*0.004)
- sit=sin(f*0.004)
- xoff=sin(tt*0.02)*20
- yoff=sin(tt*0.03)*22
- b=15--rnd_efu-btn()
- bb=stat(26)/3.
- pattern=stat(24)
- ch1=get_note(0)
- ch2=get_note(1)
- ch3=get_note(2)
- ch4=get_note(3)
- note={ch1[1],ch2[1],ch3[1],ch4[1]}
- inst={ch1[2],ch2[2],ch3[2],ch4[2]}
- sefx={ch1[3],ch2[3],ch3[3],ch4[3]}
- volu={ch1[4],ch2[4],ch3[4],ch4[4]}
- if note[2]==36 and inst[2]==6 and ti[2]+0.1>tt then
-  hitf[1]=5
-  ti[2]=tt
-  dis_f=0
-  
- else
-  dis_f=dis_f*0.8
-  dis=flr(dis_f)
-  hitf[1]=hitf[1]*0.5
- end
- for i=1,8 do
-  hit[i]=flr(hitf[i])
- end
- 
- -- it seems the best way to
- -- get reliable results is
- -- to get the values to hit{}
- -- and then based on that,
- -- have hitf{} contain a float
- -- that fades down after it's
- -- triggered
- 
- hit[2]=(note[2])
- hit[4]=(volu[2])
- 
- if hit[2]>2 then
-  hitf[3]=2 --hit[2]
- else
-  hitf[3]=hitf[3]*0.2
- end
- if hit[4]>2 then
-  hitf[4]=0.4
- else
-  hitf[4]=hitf[4]*0.2
- end
- 
- -- deprecated, but another way
- -- to keep track of things
- -- didn't work well, though
- if note[2]==36 and ti[1]+dt*2>tt then 
-  rnd_efu=rnd_efu+1 
-  ti[1]=tt
- end
- if rnd_efu>8 then rnd_efu=0 end
-
- t=t+0.0005
- if rec==1 then
-  update_music_stats()
- end
- yield() --coroutine stuff \😐/
-end
+--]]
 
 f=0
 cur_ef=nil
 function _draw()
 --[
-
- -- keep a copy of the screen
- -- outside of screen memory
- -- so we can do stuff like
- -- fades and things just by
- -- poking the memory around
  memcpy(0x1000,0x6000,0x2000)
  f=f+1
- --holdframe()
- --if f%4==0 then
- --poke(0x5f5e,0b10101010)
- if efu[stat(24)+1]==1 then 
-  cur_ef=cocreate(efu_xor) 
+ if (efu[pattern]==0) cur_ef=nil 
+ if (efu[pattern]==1) cur_ef=cocreate(efu_xor) 
+ if (efu[pattern]==2) cur_ef=cocreate(efu_xor)
+ if (efu[pattern]==3) cur_ef=cocreate(efu_lines) 
+ if (efu[pattern]==4) cur_ef=cocreate(efu_lines)  
+ if (efu[pattern]==5) cur_ef=cocreate(voxel)  
+ if (efu[pattern]==6) cur_ef=cocreate(voxel)
+ if (efu[pattern]==7) then
+  cur_ef=cocreate(raycast)
+  sky()
  end
- if efu[stat(24)+1]==0 then
-  cur_ef=cocreate(efu_lines) 
- end
- if efu[stat(24)+1]==2 then
-  cur_ef=cocreate(efu_lines) 
- end
- if efu[stat(24)+1]==3 then
+ 
   if stat(21)<=8 then
-   cur_ef=cocreate(efu_border)
-  else
-  	cur_ef=cocreate(efu_lines)
-  end 
- end
- if efu[stat(24)+1]==4 then
-  if stat(21)<=8 then
-   cur_ef=cocreate(efu_border)
-  else
-  	cur_ef=cocreate(efu_xor)
-  end 
- end
+   if (efu[pattern]>0 and efu[pattern]%2==1) then
+    cur_ef=cocreate(efu_border)
+   end 
+  end
 	
  if cur_ef and costatus(cur_ef)!= 'dead' then
-  if efu[stat(24)+1]==1 then
-   if f%2==0 then coresume(cur_ef) end
+  if efu[pattern]==1 then
+   if (f%2==0) coresume(cur_ef)
   else
    coresume(cur_ef)
   end
  else
   cur_ef=nil
  end 
+ 
+ --debug info
  if rec==1 then
- rectfill(0,0,31,128,0)
-  draw_music_stats()
-  print(rnd_efu,0,6*6,8)
-  print(hit[2])
+  rectfill(0,0,31,128,0)
+--  draw_music_stats()
+  print(hit[2],0,6*6,8)
   print(note[2])
   print(inst[2])
   print(stat(7))
@@ -844,121 +386,7 @@ function _draw()
  poke(0x6000,flr(f)*128)
 end
 
-function debug_palette()
- rectfill(0,0,128,128,0)
- for i=0,15 do
-  print(@(0x5f10+i),0,6*i,i)
-  
-  print(i,4*4,6*i,i)
- end
-end 
-
-function efu_smear()
- local i
- for i=1,127 do
-  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
- end 
-end
-
-function efu_border()
- rectfill(1,0,3,128,8-rnd(4))
- line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
- efu_wiggle(10)
- efu_smear()
- yield()
-end
-
-
--- polyline scene
-function efu_lines()
- local i
- local x
- local dx={}
- local dy={}
- local fv=40
- local p
- local sc
- cls(bg)
- if efu[stat(24)+1]!=2 then 
-  efu_smear()
- end
- efu_wiggle(1.5)
- for i=1,#pox do
-  ii=i+1
-  if ii>#pox then ii=1 end
-  iii=ii+1
-  if iii>#pox then iii=1 end
-  dx[1]=(pox[i]*(fv/poz[i])+64)
-  dy[1]=(poy[i]*(fv/poz[i])+64)
-  dx[2]=(pox[ii]*(fv/poz[ii])+64)
-  dy[2]=(poy[ii]*(fv/poz[ii])+64)
-  dx[3]=(pox[iii]*(fv/poz[iii])+64)
-  dy[3]=(poy[iii]*(fv/poz[iii])+64)
-  line(dx[1],dy[1],dx[2],dy[2],8+rnd(2)) 
-  line(dx[2],dy[2],dx[3],dy[3],8-rnd(2))
- end
- if hit[2]>35 then
-  sc=640
-  rand_poly(-100,-100,50,100,100,250)
- end
- yield()
-end
-
--- xor twisting and stuff
--- needs optimisation
-function efu_xor()
-	local x
-	local y
-	local xx
-	local yy
-	local mem
-	local c
-	local p
-	local p1
-	local p2
-	local b=efv[2]
-	cls(bg)
-	for mem=0,0x1fff do
-	 xx=mem%64-32
-		if flr(xx)==0 then
- 	 dd=rnd(dis)
-		end
- 	if flr(mem>>>6)%2==0 then
-	  yy=flr(mem>>>6)-64
- 	 x=xoff+(xx*cot-(yy/2)*sit)+(xx*yy)*0.01
-   y=yoff+(xx*sit+(yy/2)*cot)+(yy*xx)*0.01
- 		c=(x^^y)*0.4+t*300--(1+sin(t)*8)
- 		p=@(mem-0x5000-hit[1])
- 		p1=(hit[1]*4*(p+1))|((c&b))
- 		p2=(hit[1]*4*(p+1))|((c&b))
-  	spoke(mem+dis+0x6000,((p2<<4)|p1)) 
-  	spoke(mem+64-dis+0x6000,((p2<<4)|p1))
-   
-   --[[ one way to optimize
-   --   is to just cut down the
-   --   resolution, these would
-   --   fill the black space
-   --
-   spoke(1+mem+dis+0x6000,((p2<<4)|p1)) 
-  	spoke(1+mem+64-dis+0x6000,((p2<<4)|p1))
-  	spoke(mem+128+dis+0x6000,((p2<<4)|p1)) 
-   spoke(mem+192-dis+0x6000,((p2<<4)|p1))
-  	spoke(1+mem+128+dis+0x6000,((p2<<4)|p1)) 
-  	spoke(1+mem+192-dis+0x6000,((p2<<4)|p1))
- 	 --]]
- 	end
-	end
-	yield()
-end
-
-
---horisontal screen wiggling
-function efu_wiggle(str)
- for i=1,127 do
-  smcpy(0x6000+i*63+sin(tt+i*(0.02*hit[4]))*(note[3]/18.)*str,0x6000+i*63,64) 
- end
-end
-
+--[[
 --wrapping screen memory poke
 function spoke(mem,val)
  while mem<0x6000 do
@@ -969,25 +397,7 @@ function spoke(mem,val)
  end
  poke(mem,val)
 end
-
---memcopy that doesn't overflow
-function smcpy(to_mem,fr_mem,len)
- if to_mem<0x6000 then to_mem=0x6000 end
- if to_mem>0x7ffe then
-  to_mem=0x7ffe
-  len=1
- end
- if to_mem+len>0x7fff then len=0x7fff-to_mem end
- --if fr_mem<0x6000 then fr_mem=0x6000 end
- if fr_mem>0x7ffe then
-  fr_mem=0x7ffe
-  len=1
- end
- if fr_mem+len>0x7fff then len=0x7fff-fr_mem end
- 
- memcpy(to_mem,fr_mem,len)
-
-end
+--]]
 
 -->8
 --some rudimentary 3d-shapes
@@ -1382,7 +792,81 @@ end
  end
 -->8
 -- music functions
---
+
+
+rates={}
+reverb={}
+distorsion={}
+filter={}
+ch1={}
+ch2={}
+ch3={}
+ch4={}
+ti={0,0,0,0,0,0}
+
+--sync keeps track of music
+--and values related to it
+--(also some redundant/deprec.
+-- things)
+function sync()
+ b=15--rnd_efu-btn()
+ pattern=stat(24)+1
+ ch1=get_note(0)
+ ch2=get_note(1)
+ ch3=get_note(2)
+ ch4=get_note(3)
+ note={ch1[1],ch2[1],ch3[1],ch4[1]}
+ inst={ch1[2],ch2[2],ch3[2],ch4[2]}
+ sefx={ch1[3],ch2[3],ch3[3],ch4[3]}
+ volu={ch1[4],ch2[4],ch3[4],ch4[4]}
+ if note[2]==36 and inst[2]==6 and ti[2]+0.1>tt then
+  hitf[1]=5
+  ti[2]=tt
+ else
+  hitf[1]=hitf[1]*0.5
+ end
+ for i=1,8 do
+  hit[i]=flr(hitf[i])
+ end
+ 
+ -- it seems the best way to
+ -- get reliable results is
+ -- to get the values to hit{}
+ -- and then based on that,
+ -- have hitf{} contain a float
+ -- that fades down after it's
+ -- triggered
+ 
+ hit[2]=(note[2])
+ hit[4]=(volu[2])
+ 
+ if hit[2]>2 then
+  hitf[3]=2 --hit[2]
+ else
+  hitf[3]=hitf[3]*0.2
+ end
+ if hit[4]>2 then
+  hitf[4]=0.4
+ else
+  hitf[4]=hitf[4]*0.2
+ end
+ 
+ -- deprecated, but another way
+ -- to keep track of things
+ -- didn't work well, though
+ if note[2]==36 and ti[1]+dt*2>tt then 
+  rnd_efu=rnd_efu+1 
+  ti[1]=tt
+ end
+ if rnd_efu>8 then rnd_efu=0 end
+
+ t=t+0.0005
+ if rec==1 then
+  update_music_stats()
+ end
+ yield() --coroutine stuff \😐/
+end
+
 function stats(i,k,x,y,text)
  local note={}
 	print("",x,y,7)
@@ -1395,6 +879,7 @@ function stats(i,k,x,y,text)
 	end
 end
 
+
 function update_music_stats()
 
 	ch1=get_note(0)
@@ -1403,6 +888,7 @@ function update_music_stats()
 	ch4=get_note(3)
 end
 
+--[[
 --useful for debugging music
 --things but definitely not
 --needed in the production
@@ -1449,7 +935,7 @@ function draw_music_stats()
 	rectfill(22,122-ch4[1]/2,26,128-ch4[1]/2,0)
 	print(ch4[4],2*9+5,122-ch4[1]/2,(ch4[2]+8)*(ch4[3]&1))
 end
-
+--]]
 
 -- returns a table of four 
 -- pitch, instrument, vol, fx
@@ -1468,6 +954,467 @@ function get_note(ch)
  return { pitch, instr, vol, fx }
 end
 
+-->8
+--raycast 
+
+
+mw = 24
+mh = 24
+w = 128
+h = 128
+texw = 64.0
+texh = 64.0
+
+px = 56
+py = 10.5
+
+a = 0
+
+dirx = -1
+diry = 0
+
+planex = 0
+planey = 0.66
+
+moved = 1
+
+clrmode = 0
+skew = 0
+
+
+function raycast()
+
+ local msx=planex
+ local msy=planey
+ 
+ local stx=dirx
+ local sty=diry
+
+	poke(0x5f38, 4)
+	poke(0x5f39, 4)
+
+ for y=64,128 do  
+  local dist=(1024/(2*y-128+1))
+
+  local dby4=dist/2
+  local d16=dby4/64
+  
+  tline(
+   0,y,128,y,
+   (25+(px/0.25)+(-msx+stx)*dby4),
+   ((py/0.25)+(-msy+sty)*dby4),
+   d16*msx,d16*msy,0
+  )
+  end
+
+	texw = 32
+	texh = 32
+
+	poke(0x5f38, flr(texw))
+	poke(0x5f39, flr(texh))
+
+ -- walls
+	for x = 0, w, 1 do
+		local camx = 2.0 * x / 128.0 - 1.0
+		local rdx = dirx + planex * camx
+		local rdy = diry + planey * camx
+		
+		local mx = flr(px)
+		local my = flr(py)
+		
+		local sdx = 0
+		local sdy = 0
+		
+		local ddx = abs(1.0 / rdx)
+		local ddy = abs(1.0 / rdy)
+		
+		local pwalld = 0
+		
+		local stepx = 0
+		local stepy = 0
+		
+		local hit = 0
+		
+		local side = 0
+		
+		if (rdx < 0) then
+			stepx = -1
+			sdx = (px - mx) * ddx
+		else
+			stepx = 1
+			sdx = (mx + 1.0 - px) * ddx
+		end
+
+		if (rdy < 0) then
+			stepy = -1
+			sdy = (py - my) * ddy
+		else
+			stepy = 1
+			sdy = (my + 1.0 - py) * ddy
+		end
+		
+		while(1==1) do
+			if (hit == 1) then break end
+			if (sdx < sdy) then
+				sdx += ddx
+				mx += stepx
+				side = 0
+			else
+				sdy += ddy
+				my += stepy
+				side = 1
+			end
+			mt = mget(mx,my)
+			if(mt == 0) then hit = 0
+			elseif(mt == 20 and sdx < 2) then hit = 2
+			else hit = 1 end
+		end -- dda
+	
+		if (side == 0) then
+			pwalld = (mx - px + (1.0 - stepx) / 2.0) / rdx
+		else
+			pwalld = (my - py + (1.0 - stepy) / 2.0) / rdy
+		end
+
+		texnum = mget(mx,my)
+		hiwall = 0
+
+		if (texnum >= 19) then texnum = texnum-12 hiwall = 1 end
+
+		lineh = flr(h / pwalld)
+		
+		draws = flr(-lineh / (2-hiwall) + h / 2)
+		if (draws < 0) then draws = 0 end
+		drawe = flr(lineh / 2 + h / 2)-1
+		if (drawe >= h) then drawe = h-1 end
+	
+		
+		wallx = 0.0
+		
+		if (side == 0) then
+			wallx = py + pwalld * rdy
+		else
+			wallx = px + pwalld * rdx
+		end
+		
+		wallx -= flr(wallx)
+		
+		u = flr(wallx * texw)
+		if (side == 0 and rdx > 0) then
+			u = texw - u - 1
+		end
+
+		if (side == 1 and rdy < 0) then
+			u = texw - u - 1 
+		end
+		
+		pstep = (1.0 * texh) / lineh
+		
+		texpos = (draws - 63 + lineh / 2.0) * pstep
+		v = texpos
+
+ 	palt(0,false)
+
+		if (side == 2) then
+			pal(1,0)
+			pal(2,0)
+			pal(3,0)
+			pal(4,1)
+			pal(5,0)
+			pal(6,5)
+			pal(7,6)
+			pal(8,2)
+			pal(9,2)
+			pal(10,4)
+			pal(11,3)
+			pal(12,5)
+			pal(13,1)
+			pal(14,4)
+			pal(15,4)
+		end
+
+		tline(x,draws,x,drawe,8+8*flr(texnum/5)+rotr(u,3),((texnum-1)%4)*8+rotr(v,3),0,rotr(pstep,3),0)
+		zbuf[x] = pwalld
+
+		pal()
+	end -- wall
+	
+	--sprites
+		i = 1
+	for s in all(sp) do
+		spord[i] = i
+		spdist[i] = ((px - s.x) * (px - s.x) + (py - s.y) * (py - s.y))
+		i+=1
+	end
+
+	ce_heap_sort(sp,px,py)	
+
+	i = 1
+	for s in all(sp) do
+		sx = sp[spord[i]].x - px
+		sy = sp[spord[i]].y - py
+		
+		invd = 1.0 / (planex * diry - dirx * planey)
+	
+		tx = invd * (diry * sx - dirx * sy)
+		ty = invd * (-planey * sx + planex * sy)
+
+		ssx = flr((w/2) * (1+tx/ty))
+			
+ 	--h
+		sprh = abs(flr(h/ty))
+		
+		dsy = -sprh / 2 + h / 2
+		if (dsy < 1) then dsy = 1 end
+		dey = sprh / 2 + h / 2
+		if (dey >= h) then dey = h-1 end
+		
+		--w
+		sprw = abs(flr(h/ty))
+		dsx = -sprw / 2 + ssx		
+		dex = sprw / 2 + ssx
+		if (dex >= w) then dex = w-1 end
+
+		zs = flr(abs(dsx+8))
+		ze = flr(abs(dex-8))
+		
+		if (ze >= w) ze = w-1
+		if (zs >= w) zs = w-1
+
+		if (ze == 0) ze = 1
+		if (zs == 0) zs = 1
+		
+		if (ty > 0 and ty < zbuf[zs] and ty < zbuf[ze]) then
+			sspr(s.s_x,s.s_y,s.s_w,s.s_h,dsx,dsy,sprw,sprh)
+		end
+			
+		i+=1
+	end
+	-- sprites
+end
+
+function sky()
+
+	rectfill(0,0,128,8,7)
+
+	rectfill(0,8+16,128,8+24,2)
+
+	for x = -50, 50 do
+	map(36,0, a*140+x*4*8,8, 4,2)
+	map(36,2, a*80+x*4*8,8+24, 4,2)
+	map(36,4, a*40+x*4*8,8+40, 4,2)
+	end
+
+end
+
+-->8
+--effects
+
+function efu_smear()
+ local i
+ for i=1,127 do
+  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
+ end 
+end
+
+function efu_border()
+ rectfill(1,0,3,128,8-rnd(4))
+ line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
+ efu_wiggle(10)
+ efu_smear()
+ yield()
+end
+
+
+-- polyline scene
+function efu_lines()
+ local i
+ local x
+ local dx={}
+ local dy={}
+ local fv=40
+ local p
+ local sc
+ cls(bg)
+ if pattern>8 then 
+  efu_smear()
+ end
+ efu_wiggle(1.5)
+ for i=1,#pox do
+  ii=i+1
+  if ii>#pox then ii=1 end
+  iii=ii+1
+  if iii>#pox then iii=1 end
+  dx[1]=(pox[i]*(fv/poz[i])+64)
+  dy[1]=(poy[i]*(fv/poz[i])+64)
+  dx[2]=(pox[ii]*(fv/poz[ii])+64)
+  dy[2]=(poy[ii]*(fv/poz[ii])+64)
+  dx[3]=(pox[iii]*(fv/poz[iii])+64)
+  dy[3]=(poy[iii]*(fv/poz[iii])+64)
+  line(dx[1],dy[1],dx[2],dy[2],8+rnd(2)) 
+  line(dx[2],dy[2],dx[3],dy[3],8-rnd(2))
+ end
+ if hit[2]>35 then
+  sc=640
+  rand_poly(-100,-100,50,100,100,250)
+ end
+ yield()
+end
+
+-- xor twisting and stuff
+-- needs optimisation
+function efu_xor()
+	local mem
+	local c
+	local b=efv[2]
+	cls(bg)
+	for mem=0,0x1fff do
+  c=efv[2]&((mem%64)^^flr(mem>>>7))*0.4+t*30
+ 	poke(mem+0x6000,((c<<4)|c)) 
+	end
+	yield()
+end
+
+
+--horisontal screen wiggling
+function efu_wiggle(str)
+ for i=1,127 do
+  smcpy(0x6000+i*63+sin(tt+i*(0.02*hit[4]))*(note[3]/18.)*str,0x6000+i*63,64) 
+ end
+end
+--memcopy that doesn't overflow
+function smcpy(to_mem,fr_mem,len)
+ if to_mem<0x6000 then to_mem=0x6000 end
+ if to_mem>0x7ffe then
+  to_mem=0x7ffe
+  len=1
+ end
+ if to_mem+len>0x7fff then len=0x7fff-to_mem end
+ --if fr_mem<0x6000 then fr_mem=0x6000 end
+ if fr_mem>0x7ffe then
+  fr_mem=0x7ffe
+  len=1
+ end
+ if fr_mem+len>0x7fff then len=0x7fff-fr_mem end
+ 
+ memcpy(to_mem,fr_mem,len)
+
+end
+
+precalc = 0
+ff = 0
+	phi = 0.0
+ 
+function voxel()
+	ff+=1
+	if (ff > 1) then ff = 0 end
+
+	eh = 50
+	sc = 50
+	dist = 155.0
+
+	py=-time()*40
+	px=-cos(time()*0.1)*15
+
+	phi = 0.07+cos(time()*0.01)*0.5
+	
+
+	sinphi = sin(phi)
+	cosphi = cos(phi)
+	precalc = 0
+
+	ii = 1
+	z = dist
+	zz = 2.0
+	for ii = 1, 256 do
+
+	hori = abs(100-abs(cos(time()*1+ii*0.001)*time()*5))
+
+		z -= zz
+		if (z < 20) then break end
+		zz = z*0.02
+
+
+		if(precalc==0) then
+			lx = (-cosphi*z - sinphi*z) + px
+			ly = (sinphi*z - cosphi*z) + py
+	
+			rx = (cosphi*z - sinphi*z) + px
+			ry = (-sinphi*z - cosphi*z) + py
+	
+			dx = rotr(rx-lx,7)
+		
+			lxi[ii] = lx	
+			rxi[ii] = rx	
+			lyi[ii] = ly	
+			ryi[ii] = ry	
+		else
+		
+			lx = lxi[ii]+px
+			rx = rxi[ii]+px
+			ly = lyi[ii]+py
+			ry = ryi[ii]+py
+			dx = rotr(rx-lx,7)
+		end
+		
+		
+	
+		ii += 1
+		
+		for i = 0, 127,2 do
+			mt = mget(64+(lx&63),ly&63)
+			hs = (eh - mt) / z * sc + hori
+			mt-=flr(z*0.06)
+			if (mt<0) then mt = 0 end
+			rectfill(i,hs,i+1,128-z*0.5,mt)
+			lx += dx*2
+		end
+
+	end
+
+	rectfill(0,128-17,128,128,0)
+	
+	precalc = 1
+end 
+-->8
+--palettes
+
+
+function voxelpal()
+	poke4(0x5f10,0x8582.8000)
+ poke4(0x5f14,0x8d05.8483)
+ poke4(0x5f18,0x8f86.0d8c)
+ poke4(0x5f1c,0x0787.0f06)
+ poke(0x5f2e,1)
+end
+ 
+function casterpal()
+	poke4(0x5f10,0x0706.0580)
+ poke4(0x5f14,0x0d0c.8c01)
+ poke4(0x5f18,0x0989.0484)
+ poke4(0x5f1c,0x8a8b.0383)
+ poke(0x5f2e,1)
+end
+
+function redpal()
+ poke4(0x5f10,0x8582.8000)
+ poke4(0x5f14,0x0706.8605)
+ poke4(0x5f18,0x088e.0987)
+ poke4(0x5f1c,0x8084.0288)
+ poke(0x5f2e,1)
+end
+
+-- call this in _draw to 
+-- see the current palette
+-- as a list of colors
+function debug_palette()
+ rectfill(0,0,128,128,0)
+ for i=0,15 do
+  print(@(0x5f10+i),0,6*i,i)
+  
+  print(i,4*4,6*i,i)
+ end
+end 
 __gfx__
 00000000333333330000089aa9b9b9b900000000f3dddcff33323333333233213333233373333321333333333333332122322222223232222272222227222322
 000000003332233303fffff99a9b9b9b46555550ff3dddcf22222222222322272222322232222227222222222222222777273377772727333333773371777277
