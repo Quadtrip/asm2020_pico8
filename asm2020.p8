@@ -3,12 +3,18 @@ version 27
 __lua__
 -- main
 
+
 -- which effect is played in ptr
-efu={3,4,3,4,3,4,3,4,
+
+-- efu 7 is the raycast, so
+-- uncomment the top row
+-- for easy testing of it
+efu={--7,7,7,7,7,7,7,7,
+     3,4,3,4,3,4,3,4,
      3,4,4,4,4,4,4,4,
      5,6,6,6,6,6,6,6,
-     3,7,7,7,7,7,7,7,
      1,2,2,2,2,2,2,2,
+     3,4,4,4,3,4,4,4,
      0,0,0,0,0,0,0,0}
      
 -- select by using efu[stat(24)]
@@ -135,7 +141,7 @@ function _init()
 	poke(0x5f42,0b0000) --dist
 	poke(0x5f43,0b0001) --lowpass
 
-	music(8)
+	music(0)
 	
 
 end
@@ -1204,7 +1210,7 @@ function efu_smear()
 end
 
 function efu_border()
- rectfill(1,0,3,128,8-rnd(4))
+ rectfill(1,0,3,128,13)
  line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
  efu_wiggle(10)
  efu_smear()
@@ -1287,7 +1293,7 @@ function smcpy(to_mem,fr_mem,len)
  if fr_mem+len>0x7fff then len=0x7fff-fr_mem end
  
  memcpy(to_mem,fr_mem,len)
-
+ redpal()
 end
 
 precalc = 0
@@ -1760,7 +1766,7 @@ __music__
 00 0a1a2823
 00 131a2b24
 00 141b2925
-00 0d1a0d22
+01 0d1a0d22
 00 0a1a0a23
 00 0b1a0b24
 00 0c1b0c25
@@ -1768,7 +1774,7 @@ __music__
 00 0a1a0a23
 00 131a1324
 00 141b1425
-01 151a0d22
+00 151a0d22
 00 121a0a23
 00 101a0b24
 00 111b0c25
