@@ -135,7 +135,7 @@ function _init()
 	poke(0x5f42,0b0000) --dist
 	poke(0x5f43,0b0001) --lowpass
 
-	music(0)
+	music(8)
 	
 
 end
@@ -325,7 +325,7 @@ f=0
 cur_ef=nil
 function _draw()
 --[
- memcpy(0x1000,0x6000,0x2000)
+ --memcpy(0x1000,0x6000,0x2000)
  f=f+1
  if (efu[pattern]==0) cur_ef=nil 
  if (efu[pattern]==1) cur_ef=cocreate(efu_xor) 
@@ -1199,7 +1199,7 @@ end
 function efu_smear()
  local i
  for i=1,127 do
-  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
+  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x6000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
  end 
 end
 
@@ -1221,11 +1221,13 @@ function efu_lines()
  local fv=40
  local p
  local sc
- cls(bg)
+ poke(0x5f5e,0b11111001)
+ --cls(bg)
+ rectfill(0,0,128,128,3)
+ poke(0x5f5e,0b11111110)
  if pattern>8 then 
   efu_smear()
  end
- efu_wiggle(1.5)
  for i=1,#pox do
   ii=i+1
   if ii>#pox then ii=1 end
@@ -1238,12 +1240,13 @@ function efu_lines()
   dx[3]=(pox[iii]*(fv/poz[iii])+64)
   dy[3]=(poy[iii]*(fv/poz[iii])+64)
   line(dx[1],dy[1],dx[2],dy[2],8+rnd(2)) 
-  line(dx[2],dy[2],dx[3],dy[3],8-rnd(2))
+  line(dx[2],dy[2],dx[3],dy[3],11-rnd(2))
  end
  if hit[2]>35 then
   sc=640
   rand_poly(-100,-100,50,100,100,250)
  end
+ efu_wiggle(1.5)
  yield()
 end
 
