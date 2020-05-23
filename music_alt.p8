@@ -71,54 +71,54 @@ rec=-1
 
 
 function _init()
-
- -- create a polyline
- rand_poly(-100,-100,50,100,100,250)
- --
- -- palette gradient
- poke4(0x5f10,0x8582.8000)
- poke4(0x5f14,0x0706.8605)
- poke4(0x5f18,0x088e.0987)
- poke4(0x5f1c,0x8084.0288)
- poke(0x5f2e,1)
- --]]
- 
+	
+	-- create a polyline
+	rand_poly(-100,-100,50,100,100,250)
+	--
+	-- palette gradient
+	poke4(0x5f10,0x8582.8000)
+	poke4(0x5f14,0x0706.8605)
+	poke4(0x5f18,0x088e.0987)
+	poke4(0x5f1c,0x8084.0288)
+	poke(0x5f2e,1)
+	--]]
+	
 	-- music init
- poke(0x5f40,0b1111) --speed
+	poke(0x5f40,0b1111) --speed
 	poke(0x5f41,0b0000) --reverb
 	poke(0x5f42,0b0000) --dist
 	poke(0x5f43,0b0001) --lowpass
 	music(0)
-
+	
 end
  
 snc=nil
 
 function _update60()
- ot=tt
- tt=time()--*(0.05+sn_hit*0.028)
- 
- snc=cocreate(sync)
+	ot=tt
+	tt=time()--*(0.05+sn_hit*0.028)
 	
- if snc and costatus(snc)!= 'dead' then
-  coresume(snc)
- else
-  snc=nil
- end 
- 
- -- this is where you'd update
- -- values basaed on the current
- -- pattern and efu
- if efu[stat(24)+1]%2==0 then
-  update_poly(hitf)
-  --prot.z=prot.z+(sefx[1]&0b0001)*4
-  prot.y=prot.y+0.01*(hitf[3]-1)*0.4
-  rotate_poly(prot.x,prot.y,prot.z)
- else
- 	stop_poly()
- end
- 
- dt=time()-tt
+	snc=cocreate(sync)
+	
+	if snc and costatus(snc)!= 'dead' then
+		coresume(snc)
+	else
+		snc=nil
+	end 
+	
+	-- this is where you'd update
+	-- values basaed on the current
+	-- pattern and efu
+	if efu[stat(24)+1]%2==0 then
+		update_poly(hitf)
+		--prot.z=prot.z+(sefx[1]&0b0001)*4
+		prot.y=prot.y+0.01*(hitf[3]-1)*0.4
+		rotate_poly(prot.x,prot.y,prot.z)
+	else
+		stop_poly()
+	end
+	
+	dt=time()-tt
 end
 
 --sync keeps track of music
@@ -126,160 +126,159 @@ end
 --(also some redundant/deprec.
 -- things)
 function sync()
- cot=cos(f*0.004)
- sit=sin(f*0.004)
- xoff=sin(tt*0.02)*20
- yoff=sin(tt*0.03)*22
- b=15--rnd_efu-btn()
- bb=stat(26)/3.
- pattern=stat(24)
- ch1=get_note(0)
- ch2=get_note(1)
- ch3=get_note(2)
- ch4=get_note(3)
- note={ch1[1],ch2[1],ch3[1],ch4[1]}
- inst={ch1[2],ch2[2],ch3[2],ch4[2]}
- sefx={ch1[3],ch2[3],ch3[3],ch4[3]}
- volu={ch1[4],ch2[4],ch3[4],ch4[4]}
- if note[2]==36 and inst[2]==6 and ti[2]+0.1>tt then
-  hitf[1]=5
-  ti[2]=tt
-  dis_f=0
-  
- else
-  dis_f=dis_f*0.8
-  dis=flr(dis_f)
-  hitf[1]=hitf[1]*0.5
- end
- for i=1,8 do
-  hit[i]=flr(hitf[i])
- end
- 
- -- it seems the best way to
- -- get reliable results is
- -- to get the values to hit{}
- -- and then based on that,
- -- have hitf{} contain a float
- -- that fades down after it's
- -- triggered
- 
- hit[2]=(note[2])
- hit[4]=(volu[2])
- 
- if hit[2]>2 then
-  hitf[3]=2 --hit[2]
- else
-  hitf[3]=hitf[3]*0.2
- end
- if hit[4]>2 then
-  hitf[4]=0.4
- else
-  hitf[4]=hitf[4]*0.2
- end
- 
- -- deprecated, but another way
- -- to keep track of things
- -- didn't work well, though
- if note[2]==36 and ti[1]+dt*2>tt then 
-  rnd_efu=rnd_efu+1 
-  ti[1]=tt
- end
- if rnd_efu>8 then rnd_efu=0 end
-
- t=t+0.0005
- if rec==1 then
-  update_music_stats()
- end
- yield() --coroutine stuff \😐/
+	cot=cos(f*0.004)
+	sit=sin(f*0.004)
+	xoff=sin(tt*0.02)*20
+	yoff=sin(tt*0.03)*22
+	b=15--rnd_efu-btn()
+	bb=stat(26)/3.
+	pattern=stat(24)
+	ch1=get_note(0)
+	ch2=get_note(1)
+	ch3=get_note(2)
+	ch4=get_note(3)
+	note={ch1[1],ch2[1],ch3[1],ch4[1]}
+	inst={ch1[2],ch2[2],ch3[2],ch4[2]}
+	sefx={ch1[3],ch2[3],ch3[3],ch4[3]}
+	volu={ch1[4],ch2[4],ch3[4],ch4[4]}
+	if note[2]==36 and inst[2]==6 and ti[2]+0.1>tt then
+		hitf[1]=5
+		ti[2]=tt
+		dis_f=0
+	else
+		dis_f=dis_f*0.8
+		dis=flr(dis_f)
+		hitf[1]=hitf[1]*0.5
+	end
+	for i=1,8 do
+		hit[i]=flr(hitf[i])
+	end
+	
+	-- it seems the best way to
+	-- get reliable results is
+	-- to get the values to hit{}
+	-- and then based on that,
+	-- have hitf{} contain a float
+	-- that fades down after it's
+	-- triggered
+	
+	hit[2]=(note[2])
+	hit[4]=(volu[2])
+	
+	if hit[2]>2 then
+		hitf[3]=2 --hit[2]
+	else
+		hitf[3]=hitf[3]*0.2
+	end
+	if hit[4]>2 then
+		hitf[4]=0.4
+	else
+		hitf[4]=hitf[4]*0.2
+	end
+	
+	-- deprecated, but another way
+	-- to keep track of things
+	-- didn't work well, though
+	if note[2]==36 and ti[1]+dt*2>tt then 
+		rnd_efu=rnd_efu+1 
+		ti[1]=tt
+	end
+	if rnd_efu>8 then rnd_efu=0 end
+	
+	t=t+0.0005
+	if rec==1 then
+		update_music_stats()
+	end
+	yield() --coroutine stuff \😐/
 end
 
 f=0
 cur_ef=nil
 function _draw()
---[
-
- -- keep a copy of the screen
- -- outside of screen memory
- -- so we can do stuff like
- -- fades and things just by
- -- poking the memory around
- memcpy(0x1000,0x6000,0x2000)
- f=f+1
- --holdframe()
- --if f%4==0 then
- --poke(0x5f5e,0b10101010)
- if efu[stat(24)+1]==1 then 
-  cur_ef=cocreate(efu_xor) 
- end
- if efu[stat(24)+1]==0 then
-  cur_ef=cocreate(efu_lines) 
- end
- if efu[stat(24)+1]==2 then
-  cur_ef=cocreate(efu_lines) 
- end
- if efu[stat(24)+1]==3 then
-  if stat(21)<=8 then
-   cur_ef=cocreate(efu_border)
-  else
-  	cur_ef=cocreate(efu_lines)
-  end 
- end
- if efu[stat(24)+1]==4 then
-  if stat(21)<=8 then
-   cur_ef=cocreate(efu_border)
-  else
-  	cur_ef=cocreate(efu_xor)
-  end 
- end
+	--[
 	
- if cur_ef and costatus(cur_ef)!= 'dead' then
-  if efu[stat(24)+1]==1 then
-   if f%2==0 then coresume(cur_ef) end
-  else
-   coresume(cur_ef)
-  end
- else
-  cur_ef=nil
- end 
- if rec==1 then
- rectfill(0,0,31,128,0)
-  draw_music_stats()
-  print(rnd_efu,0,6*6,8)
-  print(hit[2])
-  print(note[2])
-  print(inst[2])
-  print(stat(7))
- end
- rec=btn()>>>12&1
- --]]
- --a pixel in the top left
- --for keeping an eye on fps
- --(blinks between two colors) 
- poke(0x6000,flr(f)*128)
+	-- keep a copy of the screen
+	-- outside of screen memory
+	-- so we can do stuff like
+	-- fades and things just by
+	-- poking the memory around
+	memcpy(0x1000,0x6000,0x2000)
+	f=f+1
+	--holdframe()
+	--if f%4==0 then
+	--poke(0x5f5e,0b10101010)
+	if efu[stat(24)+1]==1 then 
+		cur_ef=cocreate(efu_xor) 
+	end
+	if efu[stat(24)+1]==0 then
+		cur_ef=cocreate(efu_lines) 
+	end
+	if efu[stat(24)+1]==2 then
+		cur_ef=cocreate(efu_lines) 
+	end
+	if efu[stat(24)+1]==3 then
+		if stat(21)<=8 then
+			cur_ef=cocreate(efu_border)
+		else
+			cur_ef=cocreate(efu_lines)
+		end 
+	end
+	if efu[stat(24)+1]==4 then
+		if stat(21)<=8 then
+			ur_ef=cocreate(efu_border)
+		else
+			cur_ef=cocreate(efu_xor)
+		end 
+	end
+	
+	if cur_ef and costatus(cur_ef)!= 'dead' then
+		if efu[stat(24)+1]==1 then
+			if f%2==0 then coresume(cur_ef) end
+		else
+			coresume(cur_ef)
+		end
+	else
+		cur_ef=nil
+	end 
+	if rec==1 then
+		rectfill(0,0,31,128,0)
+		draw_music_stats()
+		print(rnd_efu,0,6*6,8)
+		print(hit[2])
+		print(note[2])
+		print(inst[2])
+		print(stat(7))
+	end
+	rec=btn()>>>12&1
+	--]]
+	--a pixel in the top left
+	--for keeping an eye on fps
+	--(blinks between two colors) 
+	poke(0x6000,flr(f)*128)
 end
 
 function debug_palette()
- rectfill(0,0,128,128,0)
- for i=0,15 do
-  print(@(0x5f10+i),0,6*i,i)
-  
-  print(i,4*4,6*i,i)
- end
+	rectfill(0,0,128,128,0)
+	for i=0,15 do
+		print(@(0x5f10+i),0,6*i,i)
+		
+		print(i,4*4,6*i,i)
+	end
 end 
 
 function efu_smear()
- local i
- for i=1,127 do
-  smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
- end 
+	local i
+	for i=1,127 do
+		smcpy(0x6000+i*63-rnd(2+(stat(24)%6)*0.25),0x1000+i*63-rnd(2+(stat(24)%8)*0.25),rnd(128)) 
+	end 
 end
 
 function efu_border()
- rectfill(1,0,3,128,8-rnd(4))
- line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
- efu_wiggle(10)
- efu_smear()
- yield()
+	rectfill(1,0,3,128,8-rnd(4))
+	line(126-rnd(120),0,128-rnd(120),128,8+rnd(4))
+	efu_wiggle(10)
+	efu_smear()
+	yield()
 end
 
 
@@ -416,104 +415,103 @@ vz={}
 prot={x=0.0,y=0.0,z=0.0}
 
 function rand_poly(x1,y1,z1,x2,y2,z2)
- local i
- 
- for i=1,#px do
-  del(px,px[i])
-  del(py,py[i])
-  del(pz,pz[i])
-  del(vx,vx[i])
-  del(vy,vy[i])
-  del(vz,vz[i])
- end
- for i=1,polys do
-  add(px,mid(x1,x1+rnd(x2-x1),x2))
-  add(py,mid(y1,y1+rnd(y2-y1),y2))
-  add(pz,mid(z1,z1+rnd(z2-z1),z2))
-  add(vx,0)
-  add(vy,0)
-  add(vz,0)
- end
+	local i
+	
+	for i=1,#px do
+		del(px,px[i])
+		del(py,py[i])
+		del(pz,pz[i])
+		del(vx,vx[i])
+		del(vy,vy[i])
+		del(vz,vz[i])
+	end
+	for i=1,polys do
+		add(px,mid(x1,x1+rnd(x2-x1),x2))
+		add(py,mid(y1,y1+rnd(y2-y1),y2))
+		add(pz,mid(z1,z1+rnd(z2-z1),z2))
+		add(vx,0)
+		add(vy,0)
+		add(vz,0)
+	end
 end
 
 function update_poly(hit)
- for i=1,#px do
-  px[i]=px[i]
-  py[i]=py[i]+vy[i]
-  pz[i]=pz[i]
-  vy[i]=vy[i]+1
-  if vy[i]>10 then vy[i]=10 end
-  if py[i]+vy[i]>100 then vy[i]=-vy[i]*0.9 end
- end
- prot.x=prot.x*0.6
- prot.y=prot.y*0.6
- prot.z=prot.z*0.6
+	for i=1,#px do
+		px[i]=px[i]
+		py[i]=py[i]+vy[i]
+		pz[i]=pz[i]
+		vy[i]=vy[i]+1
+		if vy[i]>10 then vy[i]=10 end
+		if py[i]+vy[i]>100 then vy[i]=-vy[i]*0.9 end
+	end
+	prot.x=prot.x*0.6
+	prot.y=prot.y*0.6
+	prot.z=prot.z*0.6
 end
 
 function stop_poly()
- for i=1,#px do
-  vx[i]=0
-  vy[i]=0
-  vz[i]=0
- end
- prot.x=0
- prot.y=0
- prot.z=0
+	for i=1,#px do
+		vx[i]=0
+		vy[i]=0
+		vz[i]=0
+	end
+	prot.x=0
+	prot.y=0
+	prot.z=0
 end
 
 function rotate_poly(x,y,z)
- local cox=cos(x)
- local six=sin(x)
- local coy=cos(y)
- local siy=sin(y)
- local coz=cos(z)
- local siz=sin(z)
- local xx={}
- local yy={}
- local zz={}
- xx[4]=0
- yy[4]=0
- zz[4]=150
- cox=cos(x)
- six=sin(x)
- coy=cos(y)
- siy=sin(y)
- coz=cos(z)
- siz=sin(z)
- 
- for i=1,#px do
-  zz[5]=pz[i]-zz[4]
-  xx[1]= (xx[4])+px[i]*coy-zz[5]*siy
-  yy[1]= (yy[4])+py[i]
-  zz[1]=-(zz[4])+px[i]*siy+zz[5]*coy
-  
-  xx[2]=xx[1]
-  yy[2]=yy[1]*cox-zz[1]*six
-  zz[2]=yy[1]*six+zz[1]*cox
-  
-  px[i]=xx[2]*coz-yy[2]*siz
-  py[i]=xx[2]*siz+yy[2]*coz
-  pz[i]=zz[2]+zz[4]*2
- end
+	local cox=cos(x)
+	local six=sin(x)
+	local coy=cos(y)
+	local siy=sin(y)
+	local coz=cos(z)
+	local siz=sin(z)
+	local xx={}
+	local yy={}
+	local zz={}
+	xx[4]=0
+	yy[4]=0
+	zz[4]=150
+	cox=cos(x)
+	six=sin(x)
+	coy=cos(y)
+	siy=sin(y)
+	coz=cos(z)
+	siz=sin(z)
+	
+	for i=1,#px do
+		zz[5]=pz[i]-zz[4]
+		xx[1]= (xx[4])+px[i]*coy-zz[5]*siy
+		yy[1]= (yy[4])+py[i]
+		zz[1]=-(zz[4])+px[i]*siy+zz[5]*coy
+		
+		xx[2]=xx[1]
+		yy[2]=yy[1]*cox-zz[1]*six
+		zz[2]=yy[1]*six+zz[1]*cox
+		
+		px[i]=xx[2]*coz-yy[2]*siz
+		py[i]=xx[2]*siz+yy[2]*coz
+		pz[i]=zz[2]+zz[4]*2
+	end
 end
 -->8
 --music helpers
 
 
 function stats(i,k,x,y,text)
- local note={}
+	local note={}
 	print("",x,y,7)
 	print(text)
 	for li=i,k do
-	 color(8)
-	 print(stat(li))
-	 note=get_note(li-16)
-	 rectfill(x+8,y+6*(li-15),x+8+note[3]*2+1,y+6*(li-15)+4,note[3])
+		color(8)
+		print(stat(li))
+		note=get_note(li-16)
+		rectfill(x+8,y+6*(li-15),x+8+note[3]*2+1,y+6*(li-15)+4,note[3])
 	end
 end
 
 function update_music_stats()
-
 	ch1=get_note(0)
 	ch2=get_note(1)
 	ch3=get_note(2)
@@ -524,13 +522,13 @@ end
 --things but definitely not
 --needed in the production
 function draw_music_stats()
- print(stat(24),4*5,0,8)
+	print(stat(24),4*5,0,8)
 	stats(16,19,0,0,"ptrn")
 	--stats(20,23,4*5,0,"note")
 	--stats(24,24,0,6*5,"current")
 	--stats(25,25,4*8,6*5,"played")
---	stats(26,26,0,6*7,"ticks")
---[[	
+	--stats(26,26,0,6*7,"ticks")
+	--[[
 	for i=1,4 do
 		rates[i]=(@0x5f40&(0b0001<<(i-1))!=0)
 		reverb[i]=(@0x5f41&(0b0001<<(i-1))!=0)
@@ -545,14 +543,14 @@ function draw_music_stats()
 	color(8)
 	foreach(reverb,print)
 	color(7)
- print("distorsion")
+	print("distorsion")
 	color(8)
 	foreach(distorsion,print)
 	color(7)
 	print("lowpass filter")
 	color(8)
 	foreach(filter,print)
---]]
+	--]]
 	print("█",0,122-ch1[1]/2,ch1[3])
 	rectfill(1,122-ch1[1]/2,5,128-ch1[1]/2,0)
 	print(ch1[4],0+2,122-ch1[1]/2,(ch1[2]+8)*(ch1[3]&1))
@@ -571,18 +569,18 @@ end
 -- returns a table of four 
 -- pitch, instrument, vol, fx
 function get_note(ch)
- local sf = stat(16+ch)
- local tm = stat(20+ch)
- local addr = %(0x3200 + 68*sf + 2*tm)
- --      bitmap    sfx
- --       for         vol
- --      notes           inr
- --                         pitch   
- local pitch = (0b0000000000111111&addr)
- local instr = (0b0000000111000000&addr)>>>6
- local vol   = (0b0000111000000000&addr)>>>9
- local fx    = (0b0111000000000000&addr)>>>12
- return { pitch, instr, vol, fx }
+	local sf = stat(16+ch)
+	local tm = stat(20+ch)
+	local addr = %(0x3200 + 68*sf + 2*tm)
+	--      bitmap    sfx
+	--       for         vol
+	--      notes           inr
+	--                         pitch   
+	local pitch = (0b0000000000111111&addr)
+	local instr = (0b0000000111000000&addr)>>>6
+	local vol   = (0b0000111000000000&addr)>>>9
+	local fx    = (0b0111000000000000&addr)>>>12
+	return { pitch, instr, vol, fx }
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
